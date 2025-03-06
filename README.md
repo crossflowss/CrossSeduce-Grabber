@@ -10,6 +10,9 @@
 
 🔐i do not have anything to do on how this tool is used
 
+💬log chat ![image](https://github.com/user-attachments/assets/6a5d6c7d-b83a-4bd4-a278-8786d3eaad03)
+
+
 
 ✅ Made by Crossflows 
 
